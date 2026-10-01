@@ -1,0 +1,105 @@
+import sounddevice as sd
+import numpy as np
+import scipy.io.wavfile as wav
+import speech_recognition as sr
+import random
+
+# Слова по уровням сложности
+words_by_level = {
+    "easy": {
+        "кошка": "cat",
+        "собака": "dog",
+        "дом": "home",
+        "яблоко": "apple",
+        "книга": "book",
+        "окно": "window"
+
+    },
+    "medium": {
+        "солнце": "sun",
+        "вода": "water",
+        "друг": "friend",
+        "машина": "car",
+        "город": "city",
+        "игрушка": "toy",
+        "уровень": "level"
+
+    },
+    "hard": {
+        "облако": "cloud",
+        "радость": "joy",
+        "печаль": "sadness",
+        "путешествие": "journey",
+        "тишина": "silence"
+        
+    }
+}
+
+def record_audio(duration=5, sample_rate=44100):
+    print(f"Слушаю {duration} секунд… Говорите чётко!")
+    recording = sd.rec(
+        int(duration * sample_rate),
+        samplerate=sample_rate,
+        channels=1,
+        dtype="int16"
+    )
+    sd.wait()
+    wav.write("player_answer.wav", sample_rate, recording)
+    print("Запись завершена.")
+
+def recognize_speech(language="en-US"):
+    recognizer = sr.Recognizer()
+    with sr.AudioFile("player_answer.wav") as source:
+        audio = recognizer.record(source)
+
+    try:
+        text = recognizer.recognize_google(audio, language=language)
+        return text.strip()
+    except sr.UnknownValueError:
+        print("Не удалось распознать речь — возможно, было слишком шумно или тихо.")
+        return None
+    except sr.RequestError as e:
+        print(f"Ошибка сервиса распознавания: {e}")
+        return None
+
+def play_game():
+    print("Добро пожаловать в игру «Угадай перевод»!")
+    print("Выберите уровень сложности: easy / medium / hard")
+    level = input("Ваш выбор: ").strip().lower()
+
+    if level not in words_by_level:
+        print(f"Неизвестный уровень, выбран 'easy'.")
+        level = "easy"
+
+    score = 0
+    total = 0
+
+    while True:
+        word_ru, word_en = random.choice(list(words_by_level[level].items()))
+        print(f"\nСлово: {word_ru}")
+
+        record_audio(duration=5)
+        recognized = recognize_speech(language="en-US")
+
+        if recognized is None:
+            recognized = input("Не удалось распознать голос. Введите перевод вручную (на английском): ").strip()
+
+        recognized = recognized.lower().strip()
+
+        total += 1
+        if recognized == word_en:
+            print("✅ Верно!")
+            score += 1
+        else:
+            print(f"❌ Неверно. Правильный перевод: {word_en}")
+
+        print(f"Счёт: {score} / {total}")
+
+        again = input("Ещё одно слово? (да/нет): ").strip().lower()
+        if again not in ["да", "д", "yes", "y"]:
+            break
+
+    print(f"\nИгра окончена. Итоговый счёт: {score} / {total}")
+
+if __name__ == "__main__":
+    play_game()
